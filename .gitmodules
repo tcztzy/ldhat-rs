@@ -1,0 +1,3 @@
+[submodule "ldhat-sys/LDhat"]
+	path = ldhat-sys/LDhat
+	url = https://github.com/auton1/LDhat
