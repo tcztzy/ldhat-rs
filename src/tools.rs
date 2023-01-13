@@ -32,6 +32,7 @@ pub fn unix_timestamp() -> u64 {
     }
 }
 
+/// TODO: multiple whitespace seq support.
 #[macro_export]
 macro_rules! scan {
     ( $string:expr, $sep:expr, $( $x:ty ),+ ) => {{
