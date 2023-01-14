@@ -47,10 +47,10 @@ pub fn read_locs(path: &PathBuf) -> Result<Locs, Box<dyn std::error::Error>> {
 }
 
 fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
-    let mut lines = content.lines();
-    let first_line = lines.next().ok_or(crate::Error::new("Cannot parse the first line"))?;
+    let mut split = content.split("\n");
+    let first_line = split.next().ok_or(crate::Error::new("Cannot parse the first line"))?;
     let (l, length, model) = scan!(first_line, char::is_whitespace, usize, f64, Model);
-    let content = lines.collect::<Vec<&str>>().join("\n");
+    let content = split.as_str();
     let mut data = Vec::<f64>::new();
     for loc in content.split_whitespace() {
         let x = loc.parse::<f64>()?;

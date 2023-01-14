@@ -1,3 +1,4 @@
+#![feature(str_split_as_str)]
 pub mod error;
 pub mod io;
 pub mod tools;
