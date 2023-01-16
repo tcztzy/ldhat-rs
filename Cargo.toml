@@ -10,9 +10,10 @@ edition = "2021"
 
 [dependencies]
 bio = "1.1.0"
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.1", features = ["derive"] }
 clap-verbosity-flag = "2.0.0"
 ldhat-sys = { path = "./ldhat-sys" }
 log = "0.4.17"
-polars = { version = "0.25.1", features = ["ndarray", "dtype-u8"] }
+nom = "7.1.2"
+polars = { version = "0.26.1", features = ["ndarray", "dtype-u8"] }
 rand = "0.8.5"

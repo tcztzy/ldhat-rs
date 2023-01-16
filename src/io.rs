@@ -30,6 +30,16 @@ impl std::str::FromStr for Model {
     }
 }
 
+impl From<char> for Model {
+    fn from(value: char) -> Self {
+        match value {
+            'L' => Model::CrossingOver,
+            'C' => Model::GeneConversion,
+            _ => Err(crate::Error::new("Variant not found")).unwrap(),
+        }
+    }
+}
+
 #[test]
 fn test_parse_model() {
     use std::str::FromStr;
@@ -46,22 +56,45 @@ pub fn read_locs(path: &PathBuf) -> Result<Locs, Box<dyn std::error::Error>> {
     parse_locs(content.as_str())
 }
 
-fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
-    let mut split = content.split("\n");
-    let first_line = split.next().ok_or(crate::Error::new("Cannot parse the first line"))?;
-    let (l, length, model) = scan!(first_line, char::is_whitespace, usize, f64, Model);
-    let content = split.as_str();
-    let mut data = Vec::<f64>::new();
-    for loc in content.split_whitespace() {
-        let x = loc.parse::<f64>()?;
-        if data.last().unwrap_or(&0.) >= &x {
-            return Err(Box::new(Error::new(
-                "loc file SNPs not monotonically increasing",
-            )));
+fn is_monotonic_increasing(arr: &[f64]) -> bool {
+    let mut last = 0.;
+    for &i in arr {
+        if i < last {
+            return false;
         }
-        data.push(x);
+        last = i
     }
+    true
+}
+
+fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
+    use nom::{
+        character::complete::{digit1, multispace0, newline, one_of, space1},
+        combinator::map_res,
+        multi::many0,
+        number::complete::double,
+        sequence::{terminated, tuple},
+    };
+    let (content, (l, length, model, data)) = tuple((
+        terminated(
+            map_res(digit1::<_, (_, nom::error::ErrorKind)>, str::parse::<usize>),
+            space1,
+        ),
+        terminated(double, space1),
+        terminated(
+            map_res(one_of("LC"), |c| Ok::<_, crate::Error>(Model::from(c))),
+            newline,
+        ),
+        many0(terminated(double, multispace0)),
+    ))(content)
+    .unwrap();
+    assert_eq!(content.len(), 0);
     assert_eq!(l, data.len());
+    if !is_monotonic_increasing(&data) {
+        return Err(Box::new(Error::new(
+            "loc file SNPs not monotonically increasing",
+        )));
+    }
     Ok(Locs {
         data,
         length,
