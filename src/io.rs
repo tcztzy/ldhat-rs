@@ -69,9 +69,9 @@ fn is_monotonic_increasing(arr: &[f64]) -> bool {
 
 fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
     use nom::{
-        character::complete::{digit1, multispace0, newline, one_of, space1},
+        character::complete::{digit1, multispace1, newline, one_of, space1},
         combinator::map_res,
-        multi::many0,
+        multi::separated_list0,
         number::complete::double,
         sequence::{terminated, tuple},
     };
@@ -85,7 +85,7 @@ fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
             map_res(one_of("LC"), |c| Ok::<_, crate::Error>(Model::from(c))),
             newline,
         ),
-        many0(terminated(double, multispace0)),
+        separated_list0(multispace1, double),
     ))(content)
     .unwrap();
     assert_eq!(content.len(), 0);
