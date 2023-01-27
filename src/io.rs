@@ -1,4 +1,4 @@
-use crate::{scan, Error};
+use crate::Error;
 use bio::io::fasta;
 use polars::prelude::*;
 use std::fs::File;
@@ -104,7 +104,7 @@ fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
 
 #[test]
 fn test_parse_locs() {
-    let locs_content = r#"10 1200 L
+    let locs_content = r#"10  1200 L
 1 57 180 187 223 250 438 509 878 1034"#;
     let locs = parse_locs(locs_content).unwrap();
     assert_eq!(
@@ -118,24 +118,78 @@ fn test_parse_locs() {
 }
 
 pub struct Seqs {
+    ploidy: Ploidy,
     pub data: polars::frame::DataFrame,
 }
 
-pub fn read_fasta(path: &PathBuf) -> Result<Seqs, Box<dyn std::error::Error>> {
+/// Ploidy (/ˈplɔɪdi/) is the number of complete sets of chromosomes in a cell,
+/// and hence the number of possible alleles for autosomal and pseudoautosomal genes.
+#[derive(Debug, PartialEq)]
+enum Ploidy {
+    Haploid = 1,
+    Diploid = 2,
+}
+
+impl From<char> for Ploidy {
+    fn from(value: char) -> Self {
+        match value {
+            '1' => Ploidy::Haploid,
+            '2' => Ploidy::Diploid,
+            _ => Err(crate::Error::new("Variant not found")).unwrap(),
+        }
+    }
+}
+
+pub fn read_sites(path: &PathBuf) -> Result<Seqs, Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
+    parse_sites(&mut reader)
+}
+
+fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs, Box<dyn std::error::Error>> {
+    use nom::character::complete::{digit1, newline, one_of, space1};
+    use nom::combinator::map_res;
+    use nom::sequence::terminated;
     let mut buf = String::new();
     reader.read_line(&mut buf)?;
-    let (_nseq, _lseq, hd) = scan!(buf, char::is_whitespace, usize, usize, u8);
-    if hd < 1 || hd > 2 {
-        eprintln!("The first line of seqs file should have N_Seqs L_Seq Haploid(1)/Diploid(2)");
-        return Err(Box::new(Error::new("have not read haploid/diploid status")));
-    }
+    let first_line = buf.as_str();
+    let (_, (nseq, lseq, ploidy)) = nom::sequence::tuple((
+        terminated(
+            map_res(digit1::<_, (_, nom::error::ErrorKind)>, str::parse::<usize>),
+            space1,
+        ),
+        terminated(
+            map_res(digit1::<_, (_, nom::error::ErrorKind)>, str::parse::<usize>),
+            space1,
+        ),
+        terminated(
+            map_res(one_of("12"), |c| Ok::<_, crate::Error>(Ploidy::from(c))),
+            newline,
+        ),
+    ))(first_line)
+    .unwrap();
     let reader = fasta::Reader::new(reader);
     let data = DataFrame::from_iter(reader.records().into_iter().map(|res| {
         let rec = res.expect("Error during fasta record parsing");
         let ret = Series::new(rec.id(), rec.seq());
         ret
     }));
-    Ok(Seqs { data })
+    assert_eq!(data.shape(), (lseq, nseq));
+    Ok(Seqs { ploidy, data })
+}
+
+#[test]
+fn test_parse_sites() {
+    let content = r#"4 10 1
+>SampleA
+TCCGC??RTT
+>SampleB
+TACGC??GTA
+>SampleC
+TC?-CTTGTA
+>SampleD
+TCC-CTTGTT"#;
+    let mut reader = std::io::BufReader::new(content.as_bytes());
+    let seqs = parse_sites(&mut reader).unwrap();
+    assert_eq!(seqs.ploidy, Ploidy::Haploid);
 }
