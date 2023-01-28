@@ -22,9 +22,9 @@ fn main() {
     for &s in x.iter() {
         println!("cargo:rerun-if-changed={}", s);
     }
-    println!("cargo:rerun-if-changed=LDhat/ldhat.h");
+    println!("cargo:rerun-if-changed=src/ldhat.h");
     println!("cargo:rerun-if-changed=LDhat/tools.h");
-    println!("cargo:rerun-if-changed=LDhat/seqtools.h");
+    println!("cargo:rerun-if-changed=src/seqtools.h");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -32,9 +32,9 @@ fn main() {
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header("LDhat/ldhat.h")
+        .header("src/ldhat.h")
         .header("LDhat/tools.h")
-        .header("LDhat/seqtools.h")
+        .header("src/seqtools.h")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
