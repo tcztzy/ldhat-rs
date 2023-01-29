@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, LDhatResult as Result};
 use bio::io::fasta;
 use polars::prelude::*;
 use std::fs::File;
@@ -21,7 +21,7 @@ enum Model {
 
 impl std::str::FromStr for Model {
     type Err = crate::Error;
-    fn from_str(s: &str) -> Result<Model, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Model, Self::Err> {
         match s {
             "L" => Ok(Model::CrossingOver),
             "C" => Ok(Model::GeneConversion),
@@ -49,7 +49,7 @@ fn test_parse_model() {
     assert_eq!("C".parse::<Model>().unwrap(), Model::GeneConversion);
 }
 
-pub fn read_locs(path: &PathBuf) -> Result<Locs, Box<dyn std::error::Error>> {
+pub fn read_locs(path: &PathBuf) -> Result<Locs> {
     let mut file = File::open(path)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
@@ -67,7 +67,7 @@ fn is_monotonic_increasing(arr: &[f64]) -> bool {
     true
 }
 
-fn parse_locs(content: &str) -> Result<Locs, Box<dyn std::error::Error>> {
+fn parse_locs(content: &str) -> Result<Locs> {
     use nom::{
         character::complete::{digit1, multispace1, newline, one_of, space1},
         combinator::map_res,
@@ -157,7 +157,7 @@ impl From<char> for Ploidy {
     }
 }
 
-pub fn read_sites(path: &PathBuf) -> Result<Seqs, Box<dyn std::error::Error>> {
+pub fn read_sites(path: &PathBuf) -> Result<Seqs> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     parse_sites(&mut reader)
@@ -172,7 +172,7 @@ enum Base {
     G,
 }
 
-fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs, Box<dyn std::error::Error>> {
+fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs> {
     use nom::character::complete::{digit1, newline, one_of, space1};
     use nom::combinator::map_res;
     use nom::sequence::terminated;
