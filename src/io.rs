@@ -119,7 +119,24 @@ fn test_parse_locs() {
 
 pub struct Seqs {
     ploidy: Ploidy,
-    pub data: polars::frame::DataFrame,
+    data: polars::frame::DataFrame,
+}
+
+impl Seqs {
+    pub fn names(&self) -> Vec<&str> {
+        self.data.get_column_names()
+    }
+    pub fn shape(&self) -> (usize, usize) {
+        self.data.shape()
+    }
+}
+
+impl std::ops::Index<&str> for Seqs {
+    type Output = polars::series::Series;
+
+    fn index(&self, idx: &str) -> &Self::Output {
+        &self.data[idx]
+    }
 }
 
 /// Ploidy (/ˈplɔɪdi/) is the number of complete sets of chromosomes in a cell,
@@ -144,6 +161,15 @@ pub fn read_sites(path: &PathBuf) -> Result<Seqs, Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     parse_sites(&mut reader)
+}
+
+/// Backward compatible for original code
+enum Base {
+    N = 1,
+    T,
+    C,
+    A,
+    G,
 }
 
 fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs, Box<dyn std::error::Error>> {
@@ -171,7 +197,19 @@ fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs, Box<dyn std::error::Er
     let reader = fasta::Reader::new(reader);
     let data = DataFrame::from_iter(reader.records().into_iter().map(|res| {
         let rec = res.expect("Error during fasta record parsing");
-        let ret = Series::new(rec.id(), rec.seq());
+        let ret = Series::new(
+            rec.id(),
+            rec.seq()
+                .iter()
+                .map(|&x| match x {
+                    48 | 84 | 116 => Base::T,
+                    49 | 67 | 99 => Base::C,
+                    50 | 65 | 97 => Base::A,
+                    51 | 71 | 103 => Base::G,
+                    _ => Base::N,
+                } as u8)
+                .collect::<Vec<u8>>(),
+        );
         ret
     }));
     assert_eq!(data.shape(), (lseq, nseq));
@@ -192,4 +230,10 @@ TCC-CTTGTT"#;
     let mut reader = std::io::BufReader::new(content.as_bytes());
     let seqs = parse_sites(&mut reader).unwrap();
     assert_eq!(seqs.ploidy, Ploidy::Haploid);
+    let sample_a = &seqs["SampleA"];
+    println!("{}", sample_a.to_string());
+    assert!(sample_a.series_equal(&polars::series::Series::new(
+        "SampleA",
+        [2u8, 3, 3, 5, 3, 1, 1, 1, 2, 2]
+    )));
 }
