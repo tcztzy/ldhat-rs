@@ -91,9 +91,9 @@ fn parse_locs(content: &str) -> Result<Locs> {
     assert_eq!(content.len(), 0);
     assert_eq!(l, data.len());
     if !is_monotonic_increasing(&data) {
-        return Err(Box::new(Error::new(
-            "loc file SNPs not monotonically increasing",
-        )));
+        return Err(anyhow::anyhow!(
+            "loc file SNPs not monotonically increasing"
+        ));
     }
     Ok(Locs {
         data,

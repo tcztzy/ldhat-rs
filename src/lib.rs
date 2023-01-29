@@ -5,4 +5,4 @@ pub use error::Error;
 pub use io::read_locs;
 pub const SEQ_MAX: usize = 1000;
 
-pub type LDhatResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type LDhatResult<T> = anyhow::Result<T>;

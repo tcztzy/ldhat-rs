@@ -1,4 +1,4 @@
-use super::LDhatResult as Result;
+use crate::LDhatResult as Result;
 use clap::Parser;
 use std::path::PathBuf;
 
