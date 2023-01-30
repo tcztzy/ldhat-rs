@@ -1,4 +1,4 @@
-use crate::{Error, LDhatResult as Result};
+use crate::LDhatResult as Result;
 use bio::io::fasta;
 use polars::prelude::*;
 use std::fs::File;
