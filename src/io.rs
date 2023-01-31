@@ -129,6 +129,48 @@ impl Seqs {
     pub fn shape(&self) -> (usize, usize) {
         self.data.shape()
     }
+    pub fn len(&self) -> usize {
+        self.data.height()
+    }
+    /// https://stackoverflow.com/questions/72440403
+    pub fn allele_count(&self) -> Result<DataFrame> {
+        let mut iters = self
+            .data
+            .iter()
+            .map(|s| Ok(s.u8()?.into_iter()))
+            .collect::<Result<Vec<_>>>()?;
+        let mut result = df!(
+            "N" => &[0u8;0],
+            "T" => &[0u8;0],
+            "C" => &[0u8;0],
+            "A" => &[0u8;0],
+            "G" => &[0u8;0],
+        )?;
+        for _ in 0..self.data.height() {
+            let mut row = df!(
+                "N" => &[0u8],
+                "T" => &[0u8],
+                "C" => &[0u8],
+                "A" => &[0u8],
+                "G" => &[0u8],
+            )?;
+            for iter in &mut iters {
+                let value = iter.next().expect("");
+                if let Some(v) = value {
+                    match Base::from(v) {
+                        Base::N => row.apply("N", |s| s + 1)?,
+                        Base::A => row.apply("A", |s| s + 1)?,
+                        Base::C => row.apply("C", |s| s + 1)?,
+                        Base::G => row.apply("G", |s| s + 1)?,
+                        Base::T => row.apply("T", |s| s + 1)?,
+                    };
+                }
+            }
+            result.vstack_mut(&row)?;
+        }
+        result.rechunk();
+        Ok(result)
+    }
 }
 
 impl std::ops::Index<&str> for Seqs {
@@ -170,6 +212,18 @@ enum Base {
     C,
     A,
     G,
+}
+
+impl From<u8> for Base {
+    fn from(value: u8) -> Self {
+        match value {
+            2 => Base::T,
+            3 => Base::C,
+            4 => Base::A,
+            5 => Base::G,
+            _ => Base::N,
+        }
+    }
 }
 
 fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs> {
@@ -231,9 +285,20 @@ TCC-CTTGTT"#;
     let seqs = parse_sites(&mut reader).unwrap();
     assert_eq!(seqs.ploidy, Ploidy::Haploid);
     let sample_a = &seqs["SampleA"];
-    println!("{}", sample_a.to_string());
     assert!(sample_a.series_equal(&polars::series::Series::new(
         "SampleA",
         [2u8, 3, 3, 5, 3, 1, 1, 1, 2, 2]
     )));
+    let nall = seqs.allele_count().unwrap();
+    assert_eq!(
+        nall,
+        df!(
+            "N" => &[0u8, 0, 1, 2, 0, 2, 2, 1, 0, 0],
+            "T" => &[4u8, 0, 0, 0, 0, 2, 2, 0, 4, 2],
+            "C" => &[0u8, 3, 3, 0, 4, 0, 0, 0, 0, 0],
+            "A" => &[0u8, 1, 0, 0, 0, 0, 0, 0, 0, 2],
+            "G" => &[0u8, 0, 0, 2, 0, 0, 0, 3, 0, 0],
+        )
+        .unwrap()
+    );
 }
