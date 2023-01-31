@@ -2,7 +2,7 @@ use crate::LDhatResult as Result;
 use bio::io::fasta;
 use polars::prelude::*;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
@@ -132,8 +132,13 @@ impl Seqs {
     pub fn len(&self) -> usize {
         self.data.height()
     }
+    /// Count allele's frequency.
+    /// If prefix is not None, allele frequency will be write to `{prefix}freqs.txt`.
+    /// This output file format is for backward compatibility.
+    ///
+    /// Polars iter over rows is time consumed.
     /// https://stackoverflow.com/questions/72440403
-    pub fn allele_count(&self) -> Result<DataFrame> {
+    pub fn allele_count(&self, prefix: Option<&str>) -> Result<DataFrame> {
         let mut iters = self
             .data
             .iter()
@@ -179,6 +184,12 @@ impl Seqs {
                 }
             }
             result.vstack_mut(&row)?;
+        }
+        if let Some(prefix) = prefix {
+            let mut ofp = File::create(format!("{}freqs.txt", prefix))?;
+            ofp.write("\nAllele frequencies\n\n Site   -   T/0  C/1  A/2  G/3\n\n".as_bytes())?;
+            let mut writer = CsvWriter::new(ofp).has_header(false).with_delimiter(32);
+            writer.finish(&mut result)?;
         }
         result.rechunk();
         Ok(result)
@@ -301,7 +312,7 @@ TCC-CTTGTT"#;
         "SampleA",
         [2u8, 3, 3, 5, 3, 1, 1, 1, 2, 2]
     )));
-    let nall = seqs.allele_count().unwrap();
+    let nall = seqs.allele_count(None).unwrap();
     assert_eq!(
         nall,
         df!(
