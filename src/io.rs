@@ -146,6 +146,7 @@ impl Seqs {
             "A" => &[0u8;0],
             "G" => &[0u8;0],
         )?;
+        let add = |n: u8| move |s: &Series| s + n;
         for _ in 0..self.data.height() {
             let mut row = df!(
                 "N" => &[0u8],
@@ -157,13 +158,24 @@ impl Seqs {
             for iter in &mut iters {
                 let value = iter.next().expect("");
                 if let Some(v) = value {
-                    match Base::from(v) {
-                        Base::N => row.apply("N", |s| s + 1)?,
-                        Base::A => row.apply("A", |s| s + 1)?,
-                        Base::C => row.apply("C", |s| s + 1)?,
-                        Base::G => row.apply("G", |s| s + 1)?,
-                        Base::T => row.apply("T", |s| s + 1)?,
-                    };
+                    let base = Base::from(v);
+                    if self.ploidy == Ploidy::Haploid {
+                        match base {
+                            Base::N => row.apply("N", add(1))?,
+                            Base::A => row.apply("A", add(1))?,
+                            Base::C => row.apply("C", add(1))?,
+                            Base::G => row.apply("G", add(1))?,
+                            Base::T => row.apply("T", add(1))?,
+                        };
+                    } else {
+                        match base {
+                            Base::N => row.apply("N", add(2))?,
+                            Base::A => row.apply("T", add(1))?,
+                            Base::C => row.apply("C", add(2))?,
+                            Base::G => row.apply("C", add(1))?,
+                            Base::T => row.apply("T", add(2))?,
+                        };
+                    }
                 }
             }
             result.vstack_mut(&row)?;
