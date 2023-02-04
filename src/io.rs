@@ -118,7 +118,7 @@ fn test_parse_locs() {
 }
 
 pub struct Seqs {
-    ploidy: Ploidy,
+    pub ploidy: Ploidy,
     data: polars::frame::DataFrame,
 }
 
@@ -145,20 +145,20 @@ impl Seqs {
             .map(|s| Ok(s.u8()?.into_iter()))
             .collect::<Result<Vec<_>>>()?;
         let mut result = df!(
-            "N" => &[0u8;0],
-            "T" => &[0u8;0],
-            "C" => &[0u8;0],
-            "A" => &[0u8;0],
-            "G" => &[0u8;0],
+            "N" => &[0u32;0],
+            "T" => &[0u32;0],
+            "C" => &[0u32;0],
+            "A" => &[0u32;0],
+            "G" => &[0u32;0],
         )?;
-        let add = |n: u8| move |s: &Series| s + n;
+        let add = |n: u32| move |s: &Series| s + n;
         for _ in 0..self.data.height() {
             let mut row = df!(
-                "N" => &[0u8],
-                "T" => &[0u8],
-                "C" => &[0u8],
-                "A" => &[0u8],
-                "G" => &[0u8],
+                "N" => &[0u32],
+                "T" => &[0u32],
+                "C" => &[0u32],
+                "A" => &[0u32],
+                "G" => &[0u32],
             )?;
             for iter in &mut iters {
                 let value = iter.next().expect("");
@@ -206,8 +206,8 @@ impl std::ops::Index<&str> for Seqs {
 
 /// Ploidy (/ˈplɔɪdi/) is the number of complete sets of chromosomes in a cell,
 /// and hence the number of possible alleles for autosomal and pseudoautosomal genes.
-#[derive(Debug, PartialEq)]
-enum Ploidy {
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Ploidy {
     Haploid = 1,
     Diploid = 2,
 }
@@ -229,7 +229,7 @@ pub fn read_sites(path: &PathBuf) -> Result<Seqs> {
 }
 
 /// Backward compatible for original code
-enum Base {
+pub enum Base {
     N = 1,
     T,
     C,
@@ -245,6 +245,18 @@ impl From<u8> for Base {
             4 => Base::A,
             5 => Base::G,
             _ => Base::N,
+        }
+    }
+}
+
+impl std::fmt::Display for Base {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Base::N => write!(f, "N"),
+            Base::A => write!(f, "A"),
+            Base::C => write!(f, "C"),
+            Base::G => write!(f, "G"),
+            Base::T => write!(f, "T"),
         }
     }
 }
