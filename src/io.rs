@@ -8,13 +8,30 @@ use std::path::PathBuf;
 #[derive(Debug, PartialEq)]
 pub struct Locs {
     pub data: Vec<f64>,
-    length: f64,
-    model: Model,
+    pub length: f64,
+    pub model: Model,
+}
+
+impl Locs {
+    pub fn new_from_sites(sites: Seqs) -> Self {
+        Self {
+            data: (1..sites.len() + 1).map(|p| p as f64).collect(),
+            length: sites.len() as f64,
+            model: Model::CrossingOver,
+        }
+    }
+    pub fn new_from_length(length: usize) -> Self {
+        Self {
+            data: (1..length + 1).map(|p| p as f64).collect(),
+            length: length as f64,
+            model: Model::CrossingOver,
+        }
+    }
 }
 
 /// Model of crossing-over or gene conversion
 #[derive(Debug, PartialEq)]
-enum Model {
+pub enum Model {
     CrossingOver,
     GeneConversion,
 }
@@ -36,6 +53,15 @@ impl From<char> for Model {
             'L' => Model::CrossingOver,
             'C' => Model::GeneConversion,
             _ => Err(crate::Error::new("Variant not found")).unwrap(),
+        }
+    }
+}
+
+impl std::fmt::Display for Model {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Model::CrossingOver => write!(f, "L"),
+            Model::GeneConversion => write!(f, "C"),
         }
     }
 }
@@ -119,7 +145,7 @@ fn test_parse_locs() {
 
 pub struct Seqs {
     pub ploidy: Ploidy,
-    data: polars::frame::DataFrame,
+    pub data: polars::frame::DataFrame,
 }
 
 impl Seqs {
@@ -258,6 +284,12 @@ impl std::fmt::Display for Base {
             Base::G => write!(f, "G"),
             Base::T => write!(f, "T"),
         }
+    }
+}
+
+impl PartialEq for Base {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
     }
 }
 

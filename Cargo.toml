@@ -16,6 +16,8 @@ clap-verbosity-flag = "2.0.0"
 env_logger = "0.10.0"
 ldhat-sys = { path = "./ldhat-sys" }
 log = "0.4.17"
+ndarray = "0.15.6"
+ndarray-stats = "0.5.1"
 nom = "7.1.3"
 polars = { version = "0.26.1", features = ["ndarray", "dtype-u8"] }
 rand = "0.8.5"
