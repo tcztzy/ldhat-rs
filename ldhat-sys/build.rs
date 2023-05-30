@@ -4,10 +4,7 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    let c_sources = vec![
-        "LDhat/tools.c",
-        "LDhat/seqtools.c"
-    ];
+    let c_sources = vec!["LDhat/tools.c", "LDhat/seqtools.c"];
 
     let x = c_sources.clone();
     cc::Build::new()

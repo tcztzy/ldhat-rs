@@ -95,13 +95,13 @@ fn is_monotonic_increasing(arr: &[f64]) -> bool {
 
 fn parse_locs(content: &str) -> Result<Locs> {
     use nom::{
-        character::complete::{digit1, multispace1, newline, one_of, space1},
+        character::complete::{digit1, line_ending, multispace1, one_of, space1},
         combinator::map_res,
         multi::separated_list0,
         number::complete::double,
         sequence::{terminated, tuple},
     };
-    let (content, (l, length, model, data)) = tuple((
+    let (_content, (l, length, model, data)) = tuple((
         terminated(
             map_res(digit1::<_, (_, nom::error::ErrorKind)>, str::parse::<usize>),
             space1,
@@ -109,12 +109,11 @@ fn parse_locs(content: &str) -> Result<Locs> {
         terminated(double, space1),
         terminated(
             map_res(one_of("LC"), |c| Ok::<_, crate::Error>(Model::from(c))),
-            newline,
+            line_ending,
         ),
         separated_list0(multispace1, double),
     ))(content)
     .unwrap();
-    assert_eq!(content.len(), 0);
     assert_eq!(l, data.len());
     if !is_monotonic_increasing(&data) {
         return Err(anyhow::anyhow!(
@@ -178,7 +177,9 @@ impl Seqs {
             "G" => &[0u32;0],
         )?;
         let add = |n: u32| move |s: &Series| s + n;
-        for _ in 0..self.data.height() {
+        let mut ofp = File::create(format!("{}freqs.txt", prefix.unwrap_or("")))?;
+        ofp.write("\nAllele frequencies\n\n Site   -   T/0  C/1  A/2  G/3\n\n".as_bytes())?;
+        for i in 0..self.data.height() {
             let mut row = df!(
                 "N" => &[0u32],
                 "T" => &[0u32],
@@ -209,13 +210,19 @@ impl Seqs {
                     }
                 }
             }
+            ofp.write(
+                format!(
+                    "{:>4}{:>5}{:>5}{:>5}{:>5}{:>5}\n",
+                    i + 1,
+                    row.column("N")?.u32()?.get(0).unwrap(),
+                    row.column("T")?.u32()?.get(0).unwrap(),
+                    row.column("C")?.u32()?.get(0).unwrap(),
+                    row.column("A")?.u32()?.get(0).unwrap(),
+                    row.column("G")?.u32()?.get(0).unwrap(),
+                )
+                .as_bytes(),
+            )?;
             result.vstack_mut(&row)?;
-        }
-        if let Some(prefix) = prefix {
-            let mut ofp = File::create(format!("{}freqs.txt", prefix))?;
-            ofp.write("\nAllele frequencies\n\n Site   -   T/0  C/1  A/2  G/3\n\n".as_bytes())?;
-            let mut writer = CsvWriter::new(ofp).has_header(false).with_delimiter(32);
-            writer.finish(&mut result)?;
         }
         result.rechunk();
         Ok(result)
@@ -294,7 +301,7 @@ impl PartialEq for Base {
 }
 
 fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs> {
-    use nom::character::complete::{digit1, newline, one_of, space1};
+    use nom::character::complete::{digit1, line_ending, one_of, space1};
     use nom::combinator::map_res;
     use nom::sequence::terminated;
     let mut buf = String::new();
@@ -311,7 +318,7 @@ fn parse_sites(reader: &mut impl BufRead) -> Result<Seqs> {
         ),
         terminated(
             map_res(one_of("12"), |c| Ok::<_, crate::Error>(Ploidy::from(c))),
-            newline,
+            line_ending,
         ),
     ))(first_line)
     .unwrap();
